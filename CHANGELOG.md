@@ -4,6 +4,17 @@ All notable changes to the `@browserbeam/mcp-server` will be documented in this 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-03-27
+
+### Added
+
+- **Page state**: `formatPageState` now prints optional context on each interactive element when the API provides it: `in` (landmark), `near` (nearest heading text), and `form` (parent form ref).
+- **Page state**: dedicated `--- Forms ---` section listing each form with method, action, and `fields` as element refs (`f1`, `f2`, …).
+
+### Changed
+
+- `ApiResponse` types extended so `page.interactive_elements` and `page.forms` match the Browserbeam API’s context-enriched shape.
+
 ## [0.2.0] - 2026-03-25
 
 ### Added
@@ -30,5 +41,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Automatic page state formatting with markdown content, interactive elements, scroll position, and extraction results
 - Environment-based configuration via `BROWSERBEAM_API_KEY` and `BROWSERBEAM_BASE_URL`
 
+[0.3.0]: https://github.com/nyku/browserbeam-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nyku/browserbeam-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nyku/browserbeam-mcp/releases/tag/v0.1.0

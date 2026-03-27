@@ -19,6 +19,16 @@ interface ApiResponse {
       ref: string;
       tag: string;
       label: string;
+      in?: string;
+      near?: string;
+      form?: string;
+    }>;
+    forms?: Array<{
+      ref: string;
+      id: string | null;
+      action: string;
+      method: string;
+      fields: string[];
     }>;
     changes?: Record<string, unknown>;
     scroll?: Record<string, unknown>;
@@ -73,7 +83,18 @@ function formatPageState(data: ApiResponse): string {
     if (page.interactive_elements?.length) {
       parts.push("\n--- Interactive Elements ---");
       for (const el of page.interactive_elements) {
-        parts.push(`  [${el.ref}] <${el.tag}> ${el.label}`);
+        const ctx: string[] = [];
+        if (el.in) ctx.push(`in:${el.in}`);
+        if (el.near) ctx.push(`near:"${el.near}"`);
+        if (el.form) ctx.push(`form:${el.form}`);
+        const suffix = ctx.length ? `  (${ctx.join(", ")})` : "";
+        parts.push(`  [${el.ref}] <${el.tag}> ${el.label}${suffix}`);
+      }
+    }
+    if (page.forms?.length) {
+      parts.push("\n--- Forms ---");
+      for (const f of page.forms) {
+        parts.push(`  [${f.ref}] ${(f.method || "GET").toUpperCase()} ${f.action || "/"}  fields: [${f.fields.join(", ")}]`);
       }
     }
     if (page.changes) {
