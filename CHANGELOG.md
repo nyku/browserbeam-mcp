@@ -4,6 +4,19 @@ All notable changes to the `@browserbeam/mcp-server` will be documented in this 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-03-30
+
+### Added
+
+- **`mode` parameter** on `browserbeam_observe`: set `mode: "full"` to receive content from all page sections (nav, aside, main, footer) organized by `## [section]` headers. Default `mode: "main"` returns only the main content area (existing behavior). Default `max_text_length` for `full` mode is 20,000 characters.
+- **`include_page_map` parameter** on `browserbeam_observe`: request a lightweight structural outline of page sections. The `map` is auto-included on the first observe of each session; set `include_page_map: true` to request it again on subsequent calls.
+- **Page map rendering**: `formatPageState` now prints a `--- Page Map ---` section when the API returns `page.map`, showing each section's name, CSS selector, and content hint.
+
+### Changed
+
+- `ApiResponse` type extended with `page.map` array.
+- `browserbeam_observe` tool description updated with guidance on `mode` and `map` usage.
+
 ## [0.3.0] - 2026-03-27
 
 ### Added
@@ -41,6 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Automatic page state formatting with markdown content, interactive elements, scroll position, and extraction results
 - Environment-based configuration via `BROWSERBEAM_API_KEY` and `BROWSERBEAM_BASE_URL`
 
+[0.4.0]: https://github.com/nyku/browserbeam-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nyku/browserbeam-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nyku/browserbeam-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nyku/browserbeam-mcp/releases/tag/v0.1.0

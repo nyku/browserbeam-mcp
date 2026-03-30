@@ -1,11 +1,25 @@
 #!/usr/bin/env node
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
+/** Resolved at runtime from `dist/index.js` → repo `package.json`. */
+const PACKAGE_VERSION = (
+  JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf8")) as { version: string }
+).version;
+
 const BASE_URL = process.env.BROWSERBEAM_BASE_URL || "https://api.browserbeam.com";
 const API_KEY = process.env.BROWSERBEAM_API_KEY || "";
+
+/** Shown to MCP clients that support server instructions (e.g. Cursor). */
+const MCP_AGENT_INSTRUCTIONS = `
+Session lifecycle — REQUIRED: When you are done with a browser session (task finished, answer delivered, no further actions planned on that session), you MUST call browserbeam_close with that session_id. Open sessions consume resources and keep Browserbeam runtime billing active until timeout. Only skip close if the user explicitly asked to keep the same session open for immediate follow-up work.
+
+Content truncation: Page markdown is length-capped by default (12,000 characters for browserbeam_observe unless you pass a higher max_text_length). Initial responses from browserbeam_create_session and browserbeam_navigate use the same default cap. If the tool output includes a truncation notice (e.g. showing N of M chars), call browserbeam_observe with a larger max_text_length or use browserbeam_scroll_collect (default max_text_length 100,000) for long or lazy-loaded pages.
+`.trim();
 
 interface ApiResponse {
   session_id?: string;
@@ -15,6 +29,7 @@ interface ApiResponse {
     stable?: boolean;
     markdown?: { content?: string; length?: { shown: number; total: number } };
     html?: { content?: string; length?: { shown: number; total: number } };
+    map?: Array<{ section: string; selector: string; hint: string }>;
     interactive_elements?: Array<{
       ref: string;
       tag: string;
@@ -80,6 +95,12 @@ function formatPageState(data: ApiResponse): string {
         parts.push(`\n[content truncated: showing ${contentBlock.length.shown} of ${contentBlock.length.total} chars]`);
       }
     }
+    if (page.map?.length) {
+      parts.push("\n--- Page Map ---");
+      for (const entry of page.map) {
+        parts.push(`  [${entry.section}] ${entry.selector}  ${entry.hint}`);
+      }
+    }
     if (page.interactive_elements?.length) {
       parts.push("\n--- Interactive Elements ---");
       for (const el of page.interactive_elements) {
@@ -119,14 +140,14 @@ function formatPageState(data: ApiResponse): string {
   return parts.join("\n");
 }
 
-const server = new McpServer({
-  name: "browserbeam",
-  version: "0.1.0",
-});
+const server = new McpServer(
+  { name: "browserbeam", version: PACKAGE_VERSION },
+  { instructions: MCP_AGENT_INSTRUCTIONS },
+);
 
 server.tool(
   "browserbeam_create_session",
-  "Create a new browser session. Optionally navigate to a URL. The response already includes page markdown and interactive element refs -- use this as your first observation instead of calling observe separately.",
+  "Create a new browser session. Optionally navigate to a URL. The response already includes page markdown and interactive element refs -- use this as your first observation instead of calling observe separately. Page markdown defaults to a 12,000-character cap; if truncated, call browserbeam_observe with a higher max_text_length or browserbeam_scroll_collect for long pages. When finished with the session, you MUST call browserbeam_close.",
   {
     url: z.string().optional().describe("URL to navigate to after creating the session"),
     viewport_width: z.number().optional().describe("Viewport width in pixels (default: 1280)"),
@@ -162,7 +183,7 @@ server.tool(
 
 server.tool(
   "browserbeam_navigate",
-  "Navigate an existing session to a new URL. The response already includes page markdown and interactive element refs -- use this as your observation instead of calling observe again. Only call observe separately if you need HTML format, a scoped section, or increased max_text_length.",
+  "Navigate an existing session to a new URL. The response already includes page markdown and interactive element refs -- use this as your observation instead of calling observe again. Only call observe separately if you need HTML format, a scoped section, or increased max_text_length. Page markdown uses the same default 12,000-character cap as browserbeam_observe; increase via observe if you see truncation. When finished with the session, you MUST call browserbeam_close.",
   {
     session_id: z.string().describe("Session ID (ses_...)"),
     url: z.string().describe("URL to navigate to"),
@@ -184,17 +205,24 @@ server.tool(
 
 server.tool(
   "browserbeam_observe",
-  "Re-read the current page state. Skip this if create_session or navigate already returned what you need. Use 'scope' to limit to a CSS container and reduce output. Default format is markdown; switch to 'html' only when you need tag/class names for building extract selectors. Lower max_text_length (e.g. 3000) when probing structure.",
+  "Re-read the current page state. Skip this if create_session or navigate already returned what you need. Use 'scope' to limit to a CSS container and reduce output. Default format is markdown; switch to 'html' only when you need tag/class names for building extract selectors. Lower max_text_length (e.g. 3000) when probing structure. Default max_text_length is 12,000 characters — long threads and pages will truncate unless you raise it; check the response for a truncation notice. Use mode 'full' to get content from ALL page sections (nav, aside, footer, etc.) organized by region — useful when you need sidebar content or footer links. The first observe in a session auto-includes a section map showing available sections; request it again with include_page_map. When finished with the session, you MUST call browserbeam_close.",
   {
     session_id: z.string().describe("Session ID (ses_...)"),
     scope: z.string().optional().describe("CSS selector to scope observation to a page section"),
     format: z.enum(["markdown", "html"]).optional().describe("Content format: 'markdown' (default) or 'html'"),
-    max_text_length: z.number().optional().describe("Max content length in chars (default: 12000). Increase if content is truncated."),
+    mode: z.enum(["main", "full"]).optional().describe("'main' (default) returns main content area only. 'full' returns all page sections (nav, aside, main, footer) organized by region headers. Default max_text_length for 'full' is 20,000."),
+    include_page_map: z.boolean().optional().describe("Include a lightweight section map showing available page sections with hints. Auto-included on first observe; set true to request again."),
+    max_text_length: z
+      .number()
+      .optional()
+      .describe("Max content length in chars (default: 12000, or 20000 for mode 'full'). Long pages need a higher value; browserbeam_scroll_collect defaults to 100000."),
   },
   async (params) => {
     const observeParams: Record<string, unknown> = {};
     if (params.scope) observeParams.scope = params.scope;
     if (params.format) observeParams.format = params.format;
+    if (params.mode) observeParams.mode = params.mode;
+    if (params.include_page_map !== undefined) observeParams.include_page_map = params.include_page_map;
     if (params.max_text_length) observeParams.max_text_length = params.max_text_length;
     const data = await apiRequest("POST", `/v1/sessions/${params.session_id}/act`, {
       steps: [{ observe: observeParams }],
@@ -393,7 +421,7 @@ server.tool(
 
 server.tool(
   "browserbeam_scroll_collect",
-  "Scroll through the entire page to trigger lazy-loaded content, then return a unified observation. Ideal for infinite scroll or long pages.",
+  "Scroll through the entire page to trigger lazy-loaded content, then return a unified observation. Ideal for infinite scroll or long pages. Default max_text_length is 100,000 characters (higher than browserbeam_observe's 12,000 default). When finished with the session, you MUST call browserbeam_close.",
   {
     session_id: z.string().describe("Session ID (ses_...)"),
     max_scrolls: z.number().optional().describe("Safety limit on scroll iterations (default: 50)"),
@@ -533,7 +561,7 @@ server.tool(
 
 server.tool(
   "browserbeam_close",
-  "Close a browser session and release resources. Stops the billing clock.",
+  "REQUIRED cleanup: Close a browser session and release resources; stops the Browserbeam runtime billing clock. Call this as soon as you are done with the session unless the user explicitly asked to keep it open for immediate follow-up.",
   {
     session_id: z.string().describe("Session ID (ses_...)"),
   },
