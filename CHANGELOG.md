@@ -4,6 +4,20 @@ All notable changes to the `@browserbeam/mcp-server` will be documented in this 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-04-14
+
+### Added
+
+- `proxy_kind` parameter on `browserbeam_create_session`: choose `"datacenter"` (default) or `"residential"` proxy type.
+- `proxy_country` parameter on `browserbeam_create_session`: ISO-2 country code (e.g. `"us"`, `"de"`) or `"auto"` for TLD-based routing.
+- AI-powered selectors: use `"ai >> description"` syntax in `browserbeam_extract` schemas to target elements by natural-language description.
+
+### Changed
+
+- All sessions now route through a datacenter proxy by default (country auto-detected from URL TLD). No configuration needed.
+- `browserbeam_close` description updated from "stops the billing clock" to "stops credit consumption".
+- Updated README with managed proxy examples, AI selector examples, and credits-based billing language.
+
 ## [0.4.0] - 2026-03-30
 
 ### Added
@@ -54,6 +68,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Automatic page state formatting with markdown content, interactive elements, scroll position, and extraction results
 - Environment-based configuration via `BROWSERBEAM_API_KEY` and `BROWSERBEAM_BASE_URL`
 
+[0.5.0]: https://github.com/nyku/browserbeam-mcp/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/nyku/browserbeam-mcp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nyku/browserbeam-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nyku/browserbeam-mcp/compare/v0.1.0...v0.2.0

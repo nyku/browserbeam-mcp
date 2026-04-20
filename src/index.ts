@@ -158,6 +158,8 @@ server.tool(
     locale: z.string().optional().describe("Browser locale (e.g. 'en-US')"),
     timezone: z.string().optional().describe("Timezone ID (e.g. 'America/New_York')"),
     block_resources: z.array(z.string()).optional().describe("Resource types to block: 'image', 'font', 'media', 'stylesheet', 'script'"),
+    proxy_kind: z.enum(["datacenter", "residential"]).optional().describe("Proxy type. Default: 'datacenter'. Use 'residential' for sites that require it."),
+    proxy_country: z.string().optional().describe("Proxy country as ISO-2 code (e.g. 'us', 'de') or 'auto' (default) for TLD-based routing."),
     cookies: z.array(z.record(z.string(), z.unknown())).optional().describe("Array of cookie objects to inject. Each needs 'name', 'value', and 'domain' or 'url'."),
   },
   async (params) => {
@@ -176,6 +178,12 @@ server.tool(
     if (params.timezone) body.timezone = params.timezone;
     if (params.block_resources) body.block_resources = params.block_resources;
     if (params.cookies) body.cookies = params.cookies;
+    if (params.proxy_kind || params.proxy_country) {
+      body.proxy = {
+        kind: params.proxy_kind || "datacenter",
+        ...(params.proxy_country && { country: params.proxy_country }),
+      };
+    }
     const data = await apiRequest("POST", "/v1/sessions", body);
     return { content: [{ type: "text" as const, text: formatPageState(data) }] };
   },
@@ -284,10 +292,10 @@ server.tool(
 
 server.tool(
   "browserbeam_extract",
-  "Extract structured data from the page using a declarative schema. Selectors use CSS >> attribute syntax (e.g. 'h1 >> text', 'a >> href'). For lists, wrap in an array with _parent for the repeating container. Use _limit to test with a small sample before extracting the full list.",
+  "Extract structured data from the page using a declarative schema. Selectors use CSS >> attribute syntax (e.g. 'h1 >> text', 'a >> href') or AI selectors (e.g. 'ai >> the product price') for elements that are hard to target with CSS. AI selectors are resolved to cached CSS selectors automatically. For lists, wrap in an array with _parent for the repeating container. Use _limit to test with a small sample before extracting the full list.",
   {
     session_id: z.string().describe("Session ID (ses_...)"),
-    schema: z.string().describe("JSON extraction schema. Scalar: '{\"title\": \"h1 >> text\"}'. List: '{\"items\": [{\"_parent\": \".card\", \"_limit\": 3, \"name\": \"h2 >> text\", \"url\": \"a >> href\"}]}'. Attributes: >> text, >> href, >> src, >> data-*, >> any HTML attribute."),
+    schema: z.string().describe("JSON extraction schema. Scalar: '{\"title\": \"h1 >> text\"}'. List: '{\"items\": [{\"_parent\": \".card\", \"_limit\": 3, \"name\": \"h2 >> text\", \"url\": \"a >> href\"}]}'. AI selector: '{\"price\": \"ai >> the price including currency\"}'. Attributes: >> text, >> href, >> src, >> data-*, >> any HTML attribute. AI: ai >> plain-English description."),
   },
   async (params) => {
     const schema = JSON.parse(params.schema);
@@ -561,7 +569,7 @@ server.tool(
 
 server.tool(
   "browserbeam_close",
-  "REQUIRED cleanup: Close a browser session and release resources; stops the Browserbeam runtime billing clock. Call this as soon as you are done with the session unless the user explicitly asked to keep it open for immediate follow-up.",
+  "REQUIRED cleanup: Close a browser session and release resources; stops Browserbeam credit consumption. Call this as soon as you are done with the session unless the user explicitly asked to keep it open for immediate follow-up.",
   {
     session_id: z.string().describe("Session ID (ses_...)"),
   },

@@ -118,9 +118,42 @@ Related links, sidebar widgets...
 
 Use `include_page_map: true` to re-request the page map on subsequent observations.
 
+## Proxies
+
+All sessions use a datacenter proxy by default (country auto-detected from the URL's TLD). To customize, pass `proxy_kind` and/or `proxy_country` to `browserbeam_create_session`:
+
+```json
+{
+  "tool": "browserbeam_create_session",
+  "params": {
+    "url": "https://example.com",
+    "proxy_kind": "residential",
+    "proxy_country": "us"
+  }
+}
+```
+
+## AI-Powered Selectors
+
+Use the `ai >>` prefix in extract schemas to describe fields in plain English. The engine resolves them to CSS selectors via AI and caches the result:
+
+```json
+{
+  "tool": "browserbeam_extract",
+  "params": {
+    "session_id": "ses_abc123",
+    "schema": {
+      "_parent": "article.product_pod",
+      "name": "ai >> the product title",
+      "price": "ai >> the price including currency symbol"
+    }
+  }
+}
+```
+
 ## Agent guidelines (for AI clients)
 
-- **Close sessions:** Agents should call `browserbeam_close` when finished with a session so resources are released and runtime billing stops. Only keep a session open if the user explicitly needs continued work on the same browser.
+- **Close sessions:** Agents should call `browserbeam_close` when finished with a session so resources are released and credit consumption stops. Only keep a session open if the user explicitly needs continued work on the same browser.
 - **Page discovery:** The first observe auto-includes a `map`. Check it before using `mode: "full"` — if the info you need is in the main content, default mode is more token-efficient.
 - **Full mode:** Use `mode: "full"` when you need sidebar content, footer links, or navigation items that aren't in the main area. Default `max_text_length` for full mode is 20,000 characters.
 - **Truncation:** Page markdown is capped by default at **12,000** characters (`browserbeam_observe` and the page payload from `browserbeam_create_session` / `browserbeam_navigate`). If output is truncated, use `browserbeam_observe` with a higher `max_text_length` or `browserbeam_scroll_collect` (default **100,000** characters) for long or lazy-loaded pages.
@@ -142,7 +175,7 @@ AI Agent → MCP Tool Call → Browserbeam API → Real Browser → Structured R
 
 ## Get an API Key
 
-Sign up at [browserbeam.com](https://browserbeam.com) — 1 hour of free runtime, no credit card required.
+Sign up at [browserbeam.com](https://browserbeam.com) — 5,000 free credits, no credit card required.
 
 ## License
 
