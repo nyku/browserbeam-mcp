@@ -542,7 +542,7 @@ server.tool(
   "browserbeam_list_sessions",
   "List your active browser sessions.",
   {
-    status: z.enum(["active", "closed"]).optional().describe("Filter by status (default: all)"),
+    status: z.enum(["active", "closed", "failed"]).optional().describe("Filter by status (default: all)"),
     limit: z.number().optional().describe("Results per page, 1-100 (default: 25)"),
   },
   async (params) => {

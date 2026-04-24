@@ -78,8 +78,8 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
 | `browserbeam_screenshot` | Take a screenshot of the current page |
 | `browserbeam_pdf` | Generate a PDF of the current page |
 | `browserbeam_upload` | Upload files to a file input element |
-| `browserbeam_list_sessions` | List your active browser sessions |
-| `browserbeam_get_session` | Get the status and metadata of a session |
+| `browserbeam_list_sessions` | List your sessions; optional `status` filter: `active`, `closed`, or `failed` |
+| `browserbeam_get_session` | Get the status, duration, and error fields (e.g. `error_code` / `error_message` when `status` is `failed`) for a session |
 | `browserbeam_close` | Close a session and release resources |
 
 ## Page Map & Full Mode

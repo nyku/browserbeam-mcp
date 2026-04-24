@@ -4,6 +4,13 @@ All notable changes to the `@browserbeam/mcp-server` will be documented in this 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-04-24
+
+### Added
+
+- `browserbeam_list_sessions`: `status` filter now accepts `failed` in addition to `active` and `closed`.
+- `browserbeam_get_session`: response includes `error_code` and `error_message` when a session's status is `failed`.
+
 ## [0.5.0] - 2026-04-14
 
 ### Added
